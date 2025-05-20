@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-store" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Loader</title>
+<link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Google_Classroom_Logo.svg/768px-Google_Classroom_Logo.svg.png">
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; 
+}
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    background-color: #e6f7ff; 
+}
+.background {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-size: 300% 300%;
+    animation: GradientFlow 15s ease infinite;
+}
+@keyframes GradientFlow {
+    0% {background: linear-gradient(45deg, #ff99cc, #99ffcc, #f0f, #0ff);}
+    25% {background: linear-gradient(45deg, #99ffcc, #f0f, #0ff, #ff99cc);}
+    50% {background: linear-gradient(45deg, #f0f, #0ff, #ff99cc, #99ffcc);}
+    75% {background: linear-gradient(45deg, #0ff, #ff99cc, #99ffcc, #f0f);}
+    100% {background: linear-gradient(45deg, #ff99cc, #99ffcc, #f0f, #0ff);}
+}
+#passwordForm {
+    background: linear-gradient(45deg, #8b0000, #663399);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+#passwordForm label, #passwordForm input, #passwordForm button {
+    margin: 10px;
+}
+#passwordInput {
+    padding: 12px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+}
+#submitPassword {
+    padding: 12px 24px;
+    background-color: #ff66b3; 
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+#submitPassword:hover {
+    background-color: #ff3399; 
+}
+#instructions {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+}
+#contentContainer {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 100%;
+    height: calc(10000% - 60px);
+    display: none;
+    flex-direction: column;
+    z-index: 1;
+}
+#closeButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001; /* Ensure the button is above the iframe */
+}
+#urlBar {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    margin-bottom: 30px;
+    margin-top: 30px;
+    font-size: 16px;
+}
+#dynamicContent {
+    width: 100%;
+    height: calc(1000% - 60px); /* Adjust the height considering the URL bar */
+    border: none;
+}
+/* Tabs Styles */
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #e6f7ff;
+    margin: 0 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px 5px 0 0;
+    color: black;
+}
+.tab.active {
+    background-color: black; /* Active tab color */
+    color: white; /* Active tab text color */
+}
+.tab-content {
+    display: none;
+    flex: 1; 
+    padding: 0;
+    border: none;
+    position: relative; 
+}
+iframe {
+    width: 100%;           
+    height: 100%;          
+    border: none;          
+}
+.tab-content.active {
+    display: block;
+    padding: 0;
+    border: none;
+}
+</style>
+</head>
+<body>
+<div id="particles-js" class="background"></div>
+<div id="passwordForm">
+    <h2 style="color: #FFFFFF;">Enter Password</h2>
+    <label for="passwordInput" style="color: #FFFFFF;">Password:</label>
+    <input type="password" id="passwordInput">
+    <button id="submitPassword">Submit</button>
+    <div id="instructions" style="color: #FFFFFF;">Credits: Created by ACE</div>
+</div>
+<div id="contentContainer">
+    <input type="text" id="urlBar" placeholder="Enter URL and press Enter">
+    <div class="tabs">
+        <div class="tab active" data-tab="tab1" onclick="showTabContent('tab1')">Tab 1</div>
+        <div class="tab" data-tab="tab2" onclick="showTabContent('tab2')">Tab 2</div>
+        <div class="tab" data-tab="tab3" onclick="showTabContent('tab3')">Tab 3</div>
+    </div>
+    <div class="tab-content" id="tab1Content">
+        <iframe id="iframeTab1" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+    <div class="tab-content" id="tab2Content">
+        <iframe id="iframeTab2" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+    <div class="tab-content" id="tab3Content">
+        <iframe id="iframeTab3" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+</div>
+    <div id="resultContainer"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+particlesJS("particles-js", {
+    "particles": {
+        "number": {
+            "value": 150,
+            "density": {
+                "enable": true,
+                "value_area": 800
+            }
+        },
+        "color": {
+            "value": "#0f2000"
+        },
+        "shape": {
+            "type": "circle",
+            "stroke": {
+                "width": 0,
+                "color": "#0f2000"
+            },
+            "polygon": {
+                "nb_sides": 5
+            },
+            "image": {
+                "src": "img/github.svg",
+                "width": 100,
+                "height": 100
+            }
+        },
+        "opacity": {
+            "value": 0.58,
+            "random": false,
+            "anim": {
+                "enable": false,
+                "speed": 10,
+                "opacity_min": 0.15,
+                "sync": false
+            }
+        },
+        "size": {
+            "value": 3.5,
+            "random": true,
+            "anim": {
+                "enable": false,
+                "speed": 20,
+                "size_min": 0.4,
+                "sync": false
+            }
+        },
+        "line_linked": {
+            "enable": true,
+            "distance": 44,
+            "color": "#0f2000",
+            "opacity": 0.55,
+            "width": 1
+        },
+        "move": {
+            "enable": true,
+            "speed": 2.5,
+            "direction": "none",
+            "random": true,
+            "straight": false,
+            "out_mode": "out",
+            "bounce": false,
+            "attract": {
+                "enable": false,
+                "rotateX": 600,
+                "rotateY": 1200
+            }
+        }
+    },
+    "interactivity": {
+        "detect_on": "canvas",
+        "events": {
+            "onhover": {
+                "enable": true,
+                "mode": "grab"
+            },
+            "onclick": {
+                "enable": true,
+                "mode": "push"
+            },
+            "resize": true
+        },
+        "modes": {
+            "grab": {
+                "distance": 140,
+                "line_linked": {
+                    "opacity": 0.9
+                }
+            },
+            "bubble": {
+                "distance": 400,
+                "size": 40,
+                "duration": 2,
+                "opacity": 8,
+                "speed": 3
+            },
+            "repulse": {
+                "distance": 200,
+                "duration": 0.4
+            },
+            "push": {
+                "particles_nb": 4
+            },
+            "remove": {
+                "particles_nb": 2
+            }
+        }
+    },
+    "retina_detect": true
+});
+
+// Password validation
+document.getElementById('submitPassword').addEventListener('click', function () {
+    var enteredPassword = document.getElementById('passwordInput').value;
+    var gistUrl = 'https://gist.github.com/hhacker404/b1a07784d61a4c72366bd21e9e6e63c6/raw/Freetrial.txt';
+
+    loadgist(gistUrl)
+        .then(data => {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(data, 'text/html');
+            var content = doc.documentElement.textContent || doc.documentElement.innerText;
+
+            if (enteredPassword === content.trim()) {
+                var url = prompt("Enter the URL of the content you want to load:");
+                if (url !== null && url !== "") {
+                    if (!/^https?:\/\//i.test(url)) {
+                        if (url.indexOf('.') === -1) {
+                            // If the input doesn't contain a dot, treat it as a search query
+                            url = "https://www.google.com/search?q=" + encodeURIComponent(url);
+                        } else {
+                            // If the input contains a dot, add the "https://" prefix
+                            url = "https://" + url;
+                        }
+                    }
+                    fetchContent(url, 'iframeTab1');
+                    document.getElementById('passwordForm').style.display = 'none';
+                    document.getElementById('contentContainer').style.display = 'flex';
+                    setupUrlBarEventListener();
+                } else {
+                    alert('Invalid or no URL. Try again!');
+                }
+            } else {
+                alert('Incorrect password. Access denied!');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching password:', error);
+            alert('Failed to verify password. Please try again.');
+        });
+});
+
+function loadgist(url) {
+    const mobileUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1";
+
+    return fetch(url, {
+        headers: {
+            "User-Agent": mobileUserAgent
+        }
+    })
+    .then(response => response.text())
+    .catch(error => {
+        console.error("Error loading content:", error);
+        throw error;
+    });
+}
+
+
+document.getElementById('passwordInput').addEventListener('keyup', function(event) {
+    if (event.keyCode === 13) {
+        event.preventDefault();
+        document.getElementById('submitPassword').click();
+    }
+});
+
+let originalUrl = null; // Global variable to store the url
+let iframes = [
+    document.getElementById('iframeTab1'),
+    document.getElementById('iframeTab2'),
+    document.getElementById('iframeTab3')
+];
+function initializeTabs() {
+    // Example assuming you want to immediately attach listeners to all iframes
+    const iframes = [
+        document.getElementById('iframeTab1'),
+        document.getElementById('iframeTab2'),
+        document.getElementById('iframeTab3')
+    ];
+    // Attach the event listeners to each iframe
+    iframes.forEach(attachIframeEventListeners);
+    
+    // Set the default active tab, or however you want to manage tab state
+    showTabContent(activeTab); // Ensure you define activeTab somewhere
+}
+let activeTab = 'tab1'; // Default active tab
+function showTabContent(tabId) {
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    // Deactivate all tabs and hide all content
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    tabContents.forEach(content => {
+        content.classList.remove('active');
+    });
+    // Activate the clicked tab and show its content
+    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(tabId + 'Content').classList.add('active'); // Show the corresponding tab content
+}
+function fetchContent(url, tabId) {
+    // Prepare URL
+    if (!url.includes(".")) {
+        url = "https://www.google.com/search?q=" + encodeURIComponent(url);
+    } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = "https://" + url;
+    }
+    loadURLIntoIframe(document.getElementById(tabId), url);
+}
+// Call initialization function on script load
+initializeTabs();
+
+// Load content into the iframe and create a Blob URL
+function loadURLIntoIframe(iframe, url) {
+    const mobileUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1";
+    fetch(url, {
+        headers: {
+            "User-Agent": mobileUserAgent // Added User-Agent to the headers
+        }
+    })
+    .then(response => response.text())
+    .then(data => {
+        let modifiedContent;
+        // Check if the URL is a YouTube link
+        if (url.includes("youtube.com") || url.includes("youtu.be")) {
+            modifiedContent = fixYouTubeContent(data, url); // Use the dedicated fix function for YouTube
+        } else {
+            modifiedContent = fixContent(data, url); // Use the regular fix function
+        }
+        const blob = new Blob([modifiedContent], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Set the iframe's blob URL
+        iframe.src = blobUrl;
+        attachIframeEventListeners(iframe, data); // Pass data to attach listeners
+        extractAndReplaceVideoURL(data, originalUrl); // Pass originalUrl correctly
+    })
+    .catch(error => {
+        console.error('Error loading content:', error);
+        alert('Failed to load content. Please check the URL.');
+    });
+}
+// Function to attach event listeners to iframe
+function attachIframeEventListeners(iframe, htmlContent) {
+    iframe.onload = () => {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.addEventListener('click', handleIframeLinkClicks.bind(null, htmlContent));
+    };
+}
+// Updated handleIframeLinkClicks
+function handleIframeLinkClicks(htmlContent, event) {
+    const target = event.target.closest('a');
+    if (target && target.href) {
+        event.preventDefault(); // Prevent default link behavior
+        const url = target.href;
+        originalUrl = url;
+        // Handle hash URL clicks
+        if (url.includes('#')) {
+          // Logic for hash URLs...
+          extractAndReplaceVideoURL(document.documentElement.innerHTML, originalUrl);
+        } else {
+          // Post message for external URLs
+          window.parent.postMessage({ action: 'navigate', url: url }, '*');
+        }
+    }
+}
+async function extractAndReplaceVideoURL(htmlContent, originalUrl) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+
+    // Define a list of selectors to search for video URLs
+    const selectors = ['iframe', 'video', 'embed', 'iframe-embed', 'game-embed', 'game-iframe', 'game', 'embed-game'];
+    let videoURL = null;
+
+    // Extract embedded JSON data if present
+    const jsonData = extractEmbeddedJSON(doc);
+
+    // Iterate through the selectors to find the first matching element with a video URL
+    for (const selector of selectors) {
+        const element = doc.querySelector(selector);
+        if (element) {
+            videoURL = element.getAttribute('src') || element.getAttribute('data-src');
+            if (videoURL) {
+                console.log(`Found URL before processing: ${videoURL}`); // Debug log
+
+                // Ensure the URL starts with "http://" or "https://"
+                if (!videoURL.startsWith('http://') && !videoURL.startsWith('https://')) {
+                    if (videoURL.startsWith('//')) {
+                        videoURL = 'https:' + videoURL;
+                    } else if (videoURL.startsWith('/')) {
+                        // If the URL is relative, prepend the original site's domain
+                        const originalDomain = new URL(originalUrl).origin;
+                        videoURL = originalDomain + videoURL;
+                        console.log(`Processed relative URL: ${videoURL}`); // Debug log
+                    } else {
+                        videoURL = 'https://' + videoURL;
+                    }
+                }
+
+                console.log(`Processed URL: ${videoURL}`); // Debug log
+
+                // Display the processed video URL in a confirmation dialog
+                const userConfirmed = confirm("Processed URL: " + videoURL + "\nDo you want to continue?");
+                console.log(`User confirmation: ${userConfirmed}`); // Debug log
+                if (!userConfirmed) {
+                    return; // If the user clicks "Cancel", stop the process
+                }
+                break;
+            }
+        }
+    }
+
+    if (videoURL) {
+        console.log("Extracted video URL:", videoURL);
+
+        // Ask the user if they want to load the content as a Data URL or as a Blob
+        const useDataURL = confirm("Do you want to load the content as a Data URL? Click 'Cancel' to use Blob.");
+        console.log(`User choice for Data URL: ${useDataURL}`); // Debug log
+
+        if (useDataURL) {
+            await fetchAndProcessContentAsDataURL(videoURL, jsonData);
+        } else {
+            await fetchAndProcessContent(videoURL, jsonData);
+        }
+    } else {
+        console.log("No video element found.");
+    }
+}
+
+// Function to fetch and process content from a URL as Data URL
+async function fetchAndProcessContentAsDataURL(url, jsonData) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...jsonData // Include the extracted JSON data as headers
+            }
+        });
+        const data = await response.text(); // Fetch the content as text
+
+        // Check if the fetched content contains any of the selectors
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data, 'text/html');
+        const selectors = ['iframe', 'video', 'embed', 'iframe-embed', 'game-embed', 'game-iframe', 'game', 'embed-game'];
+        let found = false;
+
+        for (const selector of selectors) {
+            const element = doc.querySelector(selector);
+            if (element) {
+                const nestedURL = element.getAttribute('src') || element.getAttribute('data-src');
+                if (nestedURL) {
+                    found = true;
+                    // Ensure the URL starts with "http://" or "https://"
+                    let fullURL = nestedURL;
+                    if (!fullURL.startsWith('http://') && !fullURL.startsWith('https://')) {
+                        if (fullURL.startsWith('//')) {
+                            fullURL = 'https:' + fullURL;
+                        } else if (fullURL.startsWith('/')) {
+                            // If the URL is relative, prepend the original site's domain
+                            const originalDomain = new URL(url).origin;
+                            fullURL = originalDomain + fullURL;
+                            console.log(`Processed nested relative URL: ${fullURL}`); // Debug log
+                        } else {
+                            fullURL = 'https://' + fullURL;
+                        }
+                    }
+                    console.log("Nested URL found:", fullURL);
+                    await fetchAndProcessContentAsDataURL(fullURL, jsonData); // Recursively fetch and process nested content
+                    return;
+                }
+            }
+        }
+
+        if (!found) {
+            // Modify the content (assuming you have a fixContent function)
+            const modifiedContent = fixContent(data, url);
+
+            // Encode the modified content as a Data URL
+            const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(modifiedContent);
+
+            // Set the iframe source to the Data URL
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.innerHTML = `
+                <button id="closeButton" onclick="closeIframe()">X</button>
+                <iframe id="videoIframe" src="${dataUrl}" style="position: absolute; width: 100%; height: 500px; z-index: 1000; border: none;" sandbox="allow-scripts allow-same-origin" allow="fullscreen"></iframe>
+            `;
+
+            const videoIframe = document.getElementById('videoIframe');
+
+            // Wait until the iframe is loaded, then add the click listener
+            videoIframe.onload = () => {
+                videoIframe.contentWindow.document.addEventListener('click', handleIframeLinkClicks);
+                document.getElementById('passwordForm').style.display = 'none';
+                document.getElementById('resultContainer').style.display = 'flex';
+                document.getElementById('urlBar').style.top = '70px';
+                document.getElementById('contentContainer').style.top = '70px';
+            };
+        }
+    } catch (error) {
+        console.error('Error fetching or processing content:', error);
+        alert('Failed to load content.');
+    }
+}
+
+// Function to fetch and process content from a URL as Blob
+async function fetchAndProcessContent(url, jsonData) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...jsonData // Include the extracted JSON data as headers
+            }
+        });
+        const data = await response.text(); // Fetch the content as text
+
+        // Check if the fetched content contains any of the selectors
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data, 'text/html');
+        const selectors = ['iframe', 'video', 'embed', 'iframe-embed', 'game-embed', 'game-iframe', 'game', 'embed-game'];
+        let found = false;
+
+        for (const selector of selectors) {
+            const element = doc.querySelector(selector);
+            if (element) {
+                const nestedURL = element.getAttribute('src') || element.getAttribute('data-src');
+                if (nestedURL) {
+                    found = true;
+                    // Ensure the URL starts with "http://" or "https://"
+                    let fullURL = nestedURL;
+                    if (!fullURL.startsWith('http://') && !fullURL.startsWith('https://')) {
+                        if (fullURL.startsWith('//')) {
+                            fullURL = 'https:' + fullURL;
+                        } else if (fullURL.startsWith('/')) {
+                            // If the URL is relative, prepend the original site's domain
+                            const originalDomain = new URL(url).origin;
+                            fullURL = originalDomain + fullURL;
+                            console.log(`Processed nested relative URL: ${fullURL}`); // Debug log
+                        } else {
+                            fullURL = 'https://' + fullURL;
+                        }
+                    }
+                    console.log("Nested URL found:", fullURL);
+                    await fetchAndProcessContent(fullURL, jsonData); // Recursively fetch and process nested content
+                    return;
+                }
+            }
+        }
+
+        if (!found) {
+            // Modify the content (assuming you have a fixContent function)
+            const modifiedContent = fixContent(data, url);
+
+            // Create a Blob from the modified content
+            const blob = new Blob([modifiedContent], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
+
+            // Set the iframe source to the Blob URL
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.innerHTML = `
+                <button id="closeButton" onclick="closeIframe()">X</button>
+                <iframe id="videoIframe" src="${blobUrl}" style="position: absolute; width: 100%; height: 500px; z-index: 1000; border: none;" sandbox="allow-scripts allow-same-origin" allow="fullscreen"></iframe>
+            `;
+
+            const videoIframe = document.getElementById('videoIframe');
+
+            // Wait until the iframe is loaded, then add the click listener
+            videoIframe.onload = () => {
+                videoIframe.contentWindow.document.addEventListener('click', handleIframeLinkClicks);
+                document.getElementById('passwordForm').style.display = 'none';
+                document.getElementById('resultContainer').style.display = 'flex';
+                document.getElementById('urlBar').style.top = '70px';
+                document.getElementById('contentContainer').style.top = '70px';
+            };
+        }
+    } catch (error) {
+        console.error('Error fetching or processing content:', error);
+        alert('Failed to load content.');
+    }
+}
+
+// Function to extract embedded JSON data
+function extractEmbeddedJSON(doc) {
+    const scriptTags = doc.querySelectorAll('script');
+    let jsonData = null;
+
+    for (const script of scriptTags) {
+        if (script.textContent.includes('window.playerConfig')) {
+            const jsonMatch = script.textContent.match(/window\.playerConfig\s*=\s*(\{.*\});/);
+            if (jsonMatch) {
+                jsonData = JSON.parse(jsonMatch[1]);
+                break;
+            }
+        }
+    }
+
+    return jsonData;
+}
+
+function closeIframe() {
+       document.getElementById('resultContainer').style.display = 'none';
+       document.getElementById('urlBar').style.top = '0';
+       document.getElementById('contentContainer').style.top = '0';
+       document.getElementById('resultContainer').innerHTML = '';
+}
+
+function fixYouTubeContent(htmlContent, originalUrl) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    // Get the base URL to resolve relative paths
+    const baseUrl = new URL(originalUrl).origin;
+    // Fix all image, GIF, CSS, script, and HTML URLs
+    const imagesAndGifs = tempDiv.getElementsByTagName('img');
+    for (let img of imagesAndGifs) {
+        const src = img.getAttribute('src');
+        if (src) {
+            // Resolve relative URLs
+            if (!src.startsWith('http://') && !src.startsWith('https://')) {
+                img.src = new URL(src, baseUrl).href;
+            }
+        }
+    }
+    const links = tempDiv.getElementsByTagName('link');
+    for (let link of links) {
+        const href = link.getAttribute('href');
+        if (href && link.rel === 'stylesheet') {
+            link.href = new URL(href, baseUrl).href; // Fix stylesheet URLs
+        }
+    }
+    const scripts = tempDiv.getElementsByTagName('script');
+    for (let script of scripts) {
+        const src = script.getAttribute('src');
+        if (src) {
+            // Create a new script element with the correct src
+            const newScript = document.createElement('script');
+            newScript.src = new URL(src, baseUrl).href;
+            newScript.async = false; // Ensure scripts run in order
+            script.parentNode.replaceChild(newScript, script);
+        }
+    }
+    return tempDiv.innerHTML; // Return the modified content
+}
+
+function fixContent(htmlContent, originalUrl) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    const baseUrl = new URL(originalUrl).origin;
+    const baseTag = document.createElement('base');
+    baseTag.href = baseUrl;
+    tempDiv.prepend(baseTag);
+
+    // Resolve all relative URLs for images, links, scripts, iframes, videos, audios, and stylesheets
+    const elementsToFix = [...tempDiv.getElementsByTagName('img'), 
+                            ...tempDiv.getElementsByTagName('script'),
+                            ...tempDiv.getElementsByTagName('iframe'),
+                            ...tempDiv.getElementsByTagName('video'),
+                            ...tempDiv.getElementsByTagName('audio'),
+                            ...tempDiv.getElementsByTagName('embed'),
+                            ...tempDiv.getElementsByTagName('link')];
+    elementsToFix.forEach(element => {
+        const attr = element.tagName === 'LINK' ? 'href' : 'src';
+        const url = element.getAttribute(attr);
+        if (url && !url.startsWith('http')) {
+            element.setAttribute(attr, new URL(url, baseUrl).href);
+        }
+    });
+
+    // Handle dynamically fetched video URLs
+    const videoElements = tempDiv.querySelectorAll('video');
+    videoElements.forEach(video => {
+        const src = video.getAttribute('src');
+        if (src && !src.startsWith('http')) {
+            video.setAttribute('src', new URL(src, baseUrl).href);
+        }
+    });
+
+    // Fetch and replace the content of all embedded elements
+    const embeddedElements = [...tempDiv.getElementsByTagName('iframe'),
+                              ...tempDiv.getElementsByTagName('embed'),
+                              ...tempDiv.getElementsByTagName('video'),
+                              ...tempDiv.getElementsByTagName('audio')];
+    embeddedElements.forEach(element => {
+        const src = element.getAttribute('src');
+        if (src) {
+            fetch(new URL(src, baseUrl).href)
+                .then(response => response.text())
+                .then(data => {
+                    const nestedContent = fixContent(data, src);
+                    const nestedBlob = new Blob([nestedContent], { type: 'text/html' });
+                    const nestedBlobUrl = URL.createObjectURL(nestedBlob);
+                    element.setAttribute('src', nestedBlobUrl);
+                })
+                .catch(error => {
+                    console.error("Error loading embedded content:", error);
+                });
+        }
+    });
+
+    return tempDiv.innerHTML;
+}
+
+// Improved interactivity for JavaScript-heavy pages
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.action === 'navigate') {
+        const newUrl = event.data.url;
+        const activeTab = document.querySelector(".tab.active").getAttribute("data-tab");
+        const iframeMap = { 'tab1': 'iframeTab1', 'tab2': 'iframeTab2', 'tab3': 'iframeTab3' };
+        const iframeId = iframeMap[activeTab];
+        loadURLIntoIframe(document.getElementById(iframeId), newUrl);
+    }
+});
+
+// Add a click event listener to capture link clicks in the iframe
+document.getElementById("dynamicContent").addEventListener('load', function() {
+    const iframeDoc = this.contentDocument || this.contentWindow.document;
+    iframeDoc.addEventListener('click', function(event) {
+        if (event.target.tagName === 'A') {
+            event.preventDefault(); // Prevent default link behavior
+            const url = event.target.href;
+
+            // Send the URL to the parent for fetching
+            window.parent.postMessage({ action: 'navigate', url: url }, '*');
+            originalUrl = url;
+        }
+    });
+});
+
+// Handle URL input bar
+function setupUrlBarEventListener() {
+    document.getElementById('urlBar').addEventListener('keyup', function(event) {
+        if (event.key === "Enter") { // Listen for Enter key
+            const url = event.target.value.trim();
+            if (url !== "") {
+                const preparedUrl = prepareURL(url);
+                // Here use the fetchContent function instead of loadURLIntoIframe directly
+                const activeTab = document.querySelector(".tab.active").getAttribute("data-tab");
+                fetchContent(preparedUrl, activeTab === "tab1" ? "iframeTab1" : activeTab === "tab2" ? "iframeTab2" : "iframeTab3");
+                
+                event.target.value = ""; // Clear after loading
+            } else {
+                alert("Please enter a valid URL.");
+            }
+        }
+    });
+}
+
+// Function to prepare the URL for loading
+function prepareURL(url) {
+    if (!/^https?:\/\//i.test(url)) {
+        if (url.indexOf('.') === -1) {
+            // If the input doesn't contain a dot, treat it as a search query
+            url = "https://www.google.com/search?q=" + encodeURIComponent(url) + "&safe=off";
+        } else {
+            // If the input contains a dot, add the "https://" prefix
+            url = "https://" + url;
+        }
+    }
+    return url;
+}
+</script>
+</body>
+</html>
